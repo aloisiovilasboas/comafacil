@@ -28,16 +28,15 @@
         
         <div class="modal-body">
           <form @submit.prevent="salvarAlimento" class="alimento-form">
-            <div class="form-row">
-              <div class="form-group">
+            <div class="form-group">
                 <label for="nome">Nome do alimento:</label>
                 <input type="text" id="nome" v-model="alimento.nome" required />
               </div>
-                             <div class="form-group">
+                 <div class="form-group">
                  <label for="tipo">Tipo:</label>
                  <input type="text" id="tipo" v-model="alimento.tipo" required placeholder="Ex: Proteína, Carboidrato, Fruta..." />
                </div>
-            </div>
+            
 
             <div class="form-row">
               <div class="form-group">
@@ -60,11 +59,21 @@
                 <input type="number" id="gordura" v-model.number="alimento.gordura" min="0" step="any" required />
               </div>
             </div>
-
+            <div class="form-row">
             <div class="form-group">
               <label for="porcaoReferencia">Porção de referência (g):</label>
               <input type="number" id="porcaoReferencia" v-model.number="alimento.porcaoReferencia" min="1" step="any" required />
               <small>Porção para a qual os valores nutricionais se referem</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="rotuloPorcao">
+                  Rótulo da porção:
+                </label>
+                  <input id="rotuloPorcao" type="text"  v-model="alimento.rotuloPorcao" placeholder="Fatia, unidade, colher de sopa, colher de chá, ..." />
+                
+                <!-- <small>opcional</small> -->
+              </div>
             </div>
 
             <div class="form-group">
@@ -72,26 +81,33 @@
                 <input type="checkbox" v-model="alimento.discreto" />
                 Porção mínima
               </label>
-              <small>Marque se o alimento deve ser medido em porções mínimas (ex: fatias, unidades, colheres)</small>
+              <!-- <small>Marque se o alimento deve ser medido em porções mínimas (ex: fatias, unidades, colheres)</small> -->
             </div>
+          <!-- </div> -->
 
-            <div v-if="alimento.discreto" class="form-group">
-              <label for="gramaPorUnidade">Quantidade por porção:</label>
+            <div v-if="alimento.discreto" class="form-row">
+              <div class="form-group">
+                <label for="gramaPorUnidade">
+                  Peso da porção:
+                  <input type="number" id="gramaPorUnidade" v-model.number="alimento.gramaPorUnidade" min="1" step="any" placeholder="Ex: 50" class="w-32" />
+                </label>
+              </div>
+              
+              
               <div class="flex gap-2 items-center">
-                <input type="number" id="gramaPorUnidade" v-model.number="alimento.gramaPorUnidade" min="1" step="any" placeholder="Ex: 50" class="w-32" />
-                <select v-model="alimento.rotuloPorcao" class="select select-bordered w-48">
+                
+                
+                <!-- <select v-model="alimento.rotuloPorcao" class="select select-bordered w-48">
                   <option value="unidade">unidade</option>
                   <option value="fatia">fatia</option>
                   <option value="colher de sopa">colher de sopa</option>
                   <option value="colher de chá">colher de chá</option>
                   <option value="fio">fio</option>
                   <option value="outro">outro</option>
-                </select>
+                </select> -->
               </div>
-              <div v-if="alimento.rotuloPorcao === 'outro'" class="mt-2">
-                <input type="text" v-model="alimento.rotuloPorcaoCustom" placeholder="Digite o rótulo personalizado" class="input input-bordered w-full" />
-              </div>
-              <small>Peso de uma porção mínima em gramas</small>
+              
+              
             </div>
 
             <div class="form-actions">
@@ -126,7 +142,7 @@
               <th>Proteínas</th>
               <th>Carboidratos</th>
               <th>Gorduras</th>
-              <th>Porção Mínima</th>
+              <th>Discreto</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -172,40 +188,40 @@
 import { ref, computed } from 'vue';
 import { useAlimentosStore } from '../stores/alimentosStore';
 
-// Dados do seeds.txt com informações de porção mínima
-const seedsData = `Nome	Porção (g)	Gordura	Carbo	Proteína	Kcal	Discreto	GramaPorUnidade	RotuloPorcao
-Melão	1,00	0,00	0,08	0,01	0,34	true	150	fatia
-Batata doce	1,00	0,00	0,20	0,02	0,86	true	200	unidade
-Ovo	1,00	0,11	0,01	0,13	1,55	true	50	unidade
-Clara de ovo	1,00	0,00	0,01	0,11	0,52	true	30	unidade
-Queijo mussarela light Tirolez	1,00	0,18	0,00	0,28	2,74	true	20	fatia
-Queijo mussarela light zero lactose Tirolez	100,00	18,00	0,40	28,00	274,00	true	20	fatia
-Hipercalórico Growth Chocolate	1,00	0,03	0,60	0,30	3,90	false	100	unidade
-Whey Vitafor Isolado	1,00	0,00	0,00	0,90	3,76	true	30	colher de sopa
-Arroz integral cozido	1,00	0,01	0,26	0,03	1,24	true	50	colher de sopa
-Feijão Carioca cozido	100,00	0,50	13,60	4,80	76,00	true	50	colher de sopa
-Filé de frango cozido	100,00	2,50	2,80	19,00	110,00	true	100	unidade
-Top Whey 3W Max Titanium Morango	1,00	0,07	0,11	0,80	4,25	true	30	colher de sopa
-Top Whey 3W Max Titanium Chocolate	40,00	2,600	4,600	31,0000	166,0000	true	30	colher de sopa
-Uva passa	1,00	0,005	0,792	0,0031	2,9900	true	10	colher de sopa
-Batata inglesa cozida	1,00	0,001	0,201	0,0171	0,8600	true	150	unidade
-Salmão cru	1,00	0,097	0,000	0,1900	1,7000	true	120	unidade
-Azeite de oliva extravirgem (ml)	1,00	0,920	0,000	0,0000	8,2800	true	5	fio
-Tapioca	1,00	0,000	0,570	0,0000	2,2800	true	50	unidade
-Requeijão Nestlé Light	1,00	0,073	0,043	0,1200	1,3100	true	10	colher de chá
-Pão de forma integral plusvita	1,00	0,046	0,390	0,1400	2,5100	true	25	fatia
-Cuscuz cozido flocão coringa	1,00	0,006	0,390	0,0410	1,7300	true	50	colher de sopa
-Cuscuz cru flocão coringa	1,00	0,010	0,760	0,0800	3,4000	true	50	colher de sopa
-Pão de cachorro quente	1,00	0,042	0,740	0,0900	3,7200	true	50	unidade
-Salsicha vegana	1,00	0,055	0,110	0,2100	1,8000	true	80	unidade
-Molho de tomate	240,00	0,000	7,900	1,3000	44,0000	true	15	colher de sopa
-Batata palha	1,00	0,440	0,400	0,0600	4,9200	true	10	colher de sopa
-Salsicha tipo viena	1,00	0,160	0,040	0,1200	2,0800	true	50	unidade
-Milho verde em conserva	1,00	0,006	0,285	0,0620	1,3700	true	15	colher de sopa
-maçã	1,00	0,002	0,140	0,0030	0,5200	true	150	unidade
-Mamão	1,00	0,003	0,110	0,0050	0,4300	true	100	fatia
-Abacaxi	1,00	0,001	0,130	0,0050	0,5000	true	80	fatia
-Banana	1,00	0,003	0,230	0,0110	0,8900	true	100	unidade
+// Dados do seeds.txt
+const seedsData = `Porção (g)	Gordura	Carbo	Proteína	Kcal
+Melão	1,00	0,00	0,08	0,01	0,34
+Batata doce	1,00	0,00	0,20	0,02	0,86
+Ovo	1,00	0,11	0,01	0,13	1,55
+Clara de ovo	1,00	0,00	0,01	0,11	0,52
+Queijo mussarela light Tirolez	1,00	0,18	0,00	0,28	2,74
+Queijo mussarela light zero lactose Tirolez	100,00	18,00	0,40	28,00	274,00
+Hipercalórico Growth Chocolate	1,00	0,03	0,60	0,30	3,90
+Whey Vitafor Isolado	1,00	0,00	0,00	0,90	3,76
+Arroz integral cozido	1,00	0,01	0,26	0,03	1,24
+Feijão Carioca cozido	100,00	0,50	13,60	4,80	76,00
+Filé de frango cozido	100,00	2,50	2,80	19,00	110,00
+Top Whey 3W Max Titanium Morango	1,00	0,07	0,11	0,80	4,25
+Top Whey 3W Max Titanium Chocolate	40,00	2,600	4,600	31,0000	166,0000
+Uva passa	1,00	0,005	0,792	0,0031	2,9900
+Batata inglesa cozida	1,00	0,001	0,201	0,0171	0,8600
+Salmão cru	1,00	0,097	0,000	0,1900	1,7000
+Azeite de oliva extravirgem (ml)	1,00	0,920	0,000	0,0000	8,2800
+Tapioca	1,00	0,000	0,570	0,0000	2,2800
+Requeijão Nestlé Light	1,00	0,073	0,043	0,1200	1,3100
+Pão de forma integral plusvita	1,00	0,046	0,390	0,1400	2,5100
+Cuscuz cozido flocão coringa	1,00	0,006	0,390	0,0410	1,7300
+Cuscuz cru flocão coringa	1,00	0,010	0,760	0,0800	3,4000
+Pão de cachorro quente	1,00	0,042	0,740	0,0900	3,7200
+Salsicha vegana	1,00	0,055	0,110	0,2100	1,8000
+Molho de tomate	240,00	0,000	7,900	1,3000	44,0000
+Batata palha	1,00	0,440	0,400	0,0600	4,9200
+Salsicha tipo viena	1,00	0,160	0,040	0,1200	2,0800
+Milho verde em conserva	1,00	0,006	0,285	0,0620	1,3700
+maçã	1,00	0,002	0,140	0,0030	0,5200
+Mamão	1,00	0,003	0,110	0,0050	0,4300
+Abacaxi	1,00	0,001	0,130	0,0050	0,5000
+Banana	1,00	0,003	0,230	0,0110	0,8900
 Abacate	1,00	0,150	0,090	0,0200	1,6000
 Melancia	1,00	0,002	0,080	0,0060	0,3000
 Miolo de alcatra cru	1,00	0,078	0,000	0,2160	1,6300
@@ -492,18 +508,13 @@ export default {
         
         linhas.forEach(linha => {
           const partes = linha.split('\t');
-          if (partes.length >= 6) {
+          if (partes.length >= 5) {
             const nome = partes[0].trim();
             const porcaoReferencia = parseFloat(partes[1].replace(',', '.'));
             const gordura = parseFloat(partes[2].replace(',', '.'));
             const carboidrato = parseFloat(partes[3].replace(',', '.'));
             const proteina = parseFloat(partes[4].replace(',', '.'));
             const caloria = parseFloat(partes[5]?.replace(',', '.') || 0);
-            
-            // Informações de porção mínima (se disponíveis)
-            const discreto = partes[6] === 'true';
-            const gramaPorUnidade = partes[7] ? parseFloat(partes[7].replace(',', '.')) : 100;
-            const rotuloPorcao = partes[8] ? partes[8].trim() : 'unidade';
             
             // Calcular macros para determinar o tipo
             const totalMacros = gordura + carboidrato + proteina || 1;
@@ -515,26 +526,23 @@ export default {
             
             alimentos.push({
               nome,
+              descricao: `Importado da base de dados.`,
               gordura,
               carboidrato,
               proteina,
               caloria,
               porcaoReferencia,
               tipo,
-              discreto,
-              gramaPorUnidade,
-              rotuloPorcao,
-              rotuloPorcaoCustom: ''
+              discreto: false,
+              gramaPorUnidade: 100
             });
           }
         });
         
         // Importar para a store
         if (alimentos.length > 0) {
-          alimentos.forEach(alimento => {
-            store.adicionarAlimento(alimento);
-          });
-          mensagemImportacao.value = `${alimentos.length} alimentos importados com informações de porção mínima.`;
+          const resultado = store.importarAlimentos(alimentos);
+          mensagemImportacao.value = `${resultado.importados} alimentos importados. ${resultado.duplicados} alimentos ignorados (duplicados).`;
         }
       } catch (error) {
         console.error('Erro ao importar alimentos:', error);
@@ -542,12 +550,13 @@ export default {
       }
     };
     
-         // Importar alimentos da base
-     const importarAlimentos = () => {
-       if (confirm('Deseja importar os alimentos da base de dados? Isso irá adicionar novos alimentos sem remover os existentes.')) {
-         importarAlimentosSeeds2()
-       }
-     }
+    // Importar alimentos da base
+    const importarAlimentos = () => {
+      if (confirm('Deseja importar os alimentos da base de dados? Isso irá adicionar novos alimentos sem remover os existentes.')) {
+        /* store.importarAlimentosBase() */
+        importarAlimentosSeeds()
+      }
+    }
 
     // Confirmar e zerar alimentos
     const confirmarZerarAlimentos = () => {
