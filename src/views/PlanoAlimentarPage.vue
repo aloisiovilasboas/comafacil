@@ -32,6 +32,8 @@
             <span class="progress-text">{{ gordurasAlocadas.toFixed(0) }} / {{ gorduraMaxima.toFixed(0) }}</span>
           </div>
         </div>
+
+        
       </div>
       
       <div class="alert-box" v-else>
@@ -67,15 +69,15 @@
             </option>
           </select>
           <span class="contador-refeicoes">{{ currentRefeicaoIndex + 1 }} de {{ refeicoes.length }}</span>
-        </div>
-        
+      </div>
+      
         <button @click="proximaRefeicao" 
                 :disabled="currentRefeicaoIndex === refeicoes.length - 1" 
                 class="btn-navegacao">
           Próxima →
         </button>
-      </div>
-      
+    </div>
+    
       <div v-else class="sem-refeicoes">
         <h3>Nenhuma refeição criada ainda</h3>
         <p>Comece criando sua primeira refeição!</p>
@@ -106,145 +108,221 @@
           </div>
         </div>
         
-        <!-- Pratos da refeição -->
-        <div class="pratos-container">
-          <div v-if="refeicaoAtual.pratos && refeicaoAtual.pratos.length > 0">
-            <div v-for="(prato, pratoIndex) in refeicaoAtual.pratos" :key="prato.id" class="prato-card">
-              <div class="prato-header">
-                <div class="prato-titulo-row">
-                  <h4>{{ prato.nome || `Prato ${pratoIndex + 1}` }}</h4>
-                  <div class="prato-actions">
-                    <button class="btn-edit-prato" @click="editarPrato(refeicaoAtual, prato)">✏️</button>
-                    <button class="btn-delete-prato" @click="removerPrato(refeicaoAtual.id, prato.id)">🗑️</button>
+        <div class="refeicao-content">
+          <div class="pratos-container">
+            <div v-if="refeicaoAtual.pratos && refeicaoAtual.pratos.length > 0">
+              <div v-for="(prato, pratoIndex) in refeicaoAtual.pratos" :key="prato.id" class="prato-card">
+                <div class="prato-header">
+                  <div class="prato-titulo-row">
+                    <h4>{{ prato.nome || `Prato ${pratoIndex + 1}` }}</h4>
+                    <div class="prato-actions">
+                      <button class="btn-config-restricoes" @click="abrirConfigRestricoes(prato, refeicaoAtual)" title="Configurar restrições do algoritmo">⚙️</button>
+                      <button class="btn-calcular-qtd" @click="executarAlgoritmoComRestricoes(prato, refeicaoAtual)" title="Executar algoritmo genético">🧮</button>
+                      <button class="btn-edit-prato" @click="editarPrato(refeicaoAtual, prato)">✏️</button>
+                      <button class="btn-duplicar-prato" @click="duplicarPrato(refeicaoAtual, prato)" title="Duplicar prato">📋</button>
+                      <button class="btn-delete-prato" @click="removerPrato(refeicaoAtual.id, prato.id)">🗑️</button>
+                    </div>
+                  </div>
+                  <div class="prato-info-row">
+                    <div class="prato-macros-inline">
+                      <div class="macro-inline">
+                        <span class="macro-label">Cal</span>
+                        <span class="macro-value">{{ calcularCaloriasPrato(prato).toFixed(0) }}</span>
+                      </div>
+                      <div class="macro-inline">
+                        <span class="macro-label">Prot</span>
+                        <span class="macro-value">{{ calcularProteinasPrato(prato).toFixed(1) }}g</span>
+                      </div>
+                      <div class="macro-inline">
+                        <span class="macro-label">Carb</span>
+                        <span class="macro-value">{{ calcularCarboidratosPrato(prato).toFixed(1) }}g</span>
+                      </div>
+                      <div class="macro-inline">
+                        <span class="macro-label">Gord</span>
+                        <span class="macro-value">{{ calcularGordurasPrato(prato).toFixed(1) }}g</span>
+                      </div>
+                    </div>
+                    <div class="prato-progressos">
+                      <div class="progresso-item">
+                        <div class="prato-progresso">
+                          <div v-for="(item, idx) in prato.alimentos" 
+                               :key="`cal-${idx}`" 
+                               :class="`progresso-segmento-cal cor-cal-${idx % 10}`"
+                               :style="{ 
+                                 width: `${Math.max(3, (calcularCaloriasAlimento(item) / Math.max(calcularCaloriasPrato(prato), 1)) * Math.min(100, (calcularCaloriasPrato(prato) / (refeicaoAtual.metaCalorias || 1)) * 100))}%`
+                               }"></div>
+                        </div>
+                        <span class="progresso-diferenca">
+                          {{ (calcularCaloriasPrato(prato) - (refeicaoAtual.metaCalorias || 0)) >= 0 ? '+' : '' }}{{ (calcularCaloriasPrato(prato) - (refeicaoAtual.metaCalorias || 0)).toFixed(0) }} cal
+                        </span>
+                      </div>
+                      <div class="progresso-item">
+                        <div class="prato-progresso">
+                          <div v-for="(item, idx) in prato.alimentos" 
+                               :key="`prot-${idx}`" 
+                               :class="`progresso-segmento-prot cor-prot-${idx % 10}`"
+                               :style="{ 
+                                 width: `${Math.max(3, (calcularProteinasAlimento(item) / Math.max(calcularProteinasPrato(prato), 1)) * Math.min(100, (calcularProteinasPrato(prato) / (refeicaoAtual.metaProteinas || 1)) * 100))}%`
+                               }"></div>
+                        </div>
+                        <span class="progresso-diferenca">
+                          {{ (calcularProteinasPrato(prato) - (refeicaoAtual.metaProteinas || 0)) >= 0 ? '+' : '' }}{{ (calcularProteinasPrato(prato) - (refeicaoAtual.metaProteinas || 0)).toFixed(1) }}g prot
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="macronutrientes-chart">
+                    <svg viewBox="-13 -13 226 226" class="macronutrientes-svg">
+                      <!-- Área dos macronutrientes -->
+                      <polygon :points="getMacronutrientesPointsPrato(prato, refeicaoAtual)" 
+                               fill="var(--primary-color)" 
+                               fill-opacity="0.3" 
+                               stroke="white" 
+                               stroke-width="2"/>
+                      
+                      <!-- Marcações das metas (apenas caloria e proteína) -->
+                      <line x1="96" y1="20" x2="104" y2="20" stroke="green" stroke-width="4"/>
+<line x1="96" y1="180" x2="104" y2="180" stroke="blue" stroke-width="2"/>
+
+                      
+                      <!-- Labels reposicionados -->
+                      <text x="100" y="15" text-anchor="middle" class="chart-label" fill="white">Cal</text>
+                      <text x="190" y="105" text-anchor="start" class="chart-label" fill="white">Carb</text>
+                      <text x="100" y="195" text-anchor="middle" class="chart-label" fill="white">Prot</text>
+                      <text x="10" y="105" text-anchor="end" class="chart-label" fill="white">Gord</text>
+                    </svg>
+                  </div>
                   </div>
                 </div>
-                <div class="prato-info-row">
-                  <div class="prato-macros-inline">
-                    <div class="macro-inline">
-                      <span class="macro-label">Cal</span>
-                      <span class="macro-value">{{ calcularCaloriasPrato(prato).toFixed(0) }}</span>
-                    </div>
-                    <div class="macro-inline">
-                      <span class="macro-label">Prot</span>
-                      <span class="macro-value">{{ calcularProteinasPrato(prato).toFixed(1) }}g</span>
-                    </div>
-                    <div class="macro-inline">
-                      <span class="macro-label">Carb</span>
-                      <span class="macro-value">{{ calcularCarboidratosPrato(prato).toFixed(1) }}g</span>
-                    </div>
-                    <div class="macro-inline">
-                      <span class="macro-label">Gord</span>
-                      <span class="macro-value">{{ calcularGordurasPrato(prato).toFixed(1) }}g</span>
-                    </div>
-                  </div>
-                  <div class="prato-progressos">
-                    <div class="progresso-item">
-                      <div class="prato-progresso">
-                        <div v-for="(item, idx) in prato.alimentos" 
-                             :key="`cal-${idx}`" 
-                             :class="`progresso-segmento-cal cor-cal-${idx % 10}`"
-                             :style="{ 
-                               width: `${Math.max(3, (calcularCaloriasAlimento(item) / Math.max(calcularCaloriasPrato(prato), 1)) * Math.min(100, (calcularCaloriasPrato(prato) / (refeicaoAtual.metaCalorias || 1)) * 100))}%`
-                             }"></div>
-                      </div>
-                      <span class="progresso-diferenca">
-                        {{ (calcularCaloriasPrato(prato) - (refeicaoAtual.metaCalorias || 0)) >= 0 ? '+' : '' }}{{ (calcularCaloriasPrato(prato) - (refeicaoAtual.metaCalorias || 0)).toFixed(0) }} cal
-                      </span>
-                    </div>
-                    <div class="progresso-item">
-                      <div class="prato-progresso">
-                        <div v-for="(item, idx) in prato.alimentos" 
-                             :key="`prot-${idx}`" 
-                             :class="`progresso-segmento-prot cor-prot-${idx % 10}`"
-                             :style="{ 
-                               width: `${Math.max(3, (calcularProteinasAlimento(item) / Math.max(calcularProteinasPrato(prato), 1)) * Math.min(100, (calcularProteinasPrato(prato) / (refeicaoAtual.metaProteinas || 1)) * 100))}%`
-                             }"></div>
-                      </div>
-                      <span class="progresso-diferenca">
-                        {{ (calcularProteinasPrato(prato) - (refeicaoAtual.metaProteinas || 0)) >= 0 ? '+' : '' }}{{ (calcularProteinasPrato(prato) - (refeicaoAtual.metaProteinas || 0)).toFixed(1) }}g prot
-                      </span>
-                    </div>
-                  </div>
+                
+                <div class="prato-content">
+                  <div class="alimentos-list" v-if="prato.alimentos && prato.alimentos.length > 0">
+                    <ul>
+                      <li v-for="(item, idx) in prato.alimentos" :key="idx">
+              <div class="alimento-item">
+                          <div class="alimento-header">
+                            <div class="alimento-nome">
+                  <strong>{{ item.alimento.nome }}</strong> 
+                  <span>({{ item.porcao }}g)</span>
+                  <span v-if="item.alimento.discreto" class="text-sm text-gray-500">
+                    ({{ Math.round(item.porcao / item.alimento.gramaPorUnidade) }} {{ item.alimento.rotuloPorcao === 'outro' ? item.alimento.rotuloPorcaoCustom : item.alimento.rotuloPorcao }})
+                  </span>
+                </div>
+                            <div class="alimento-actions">
+                              <button @click="editarQuantidadeAlimento(refeicaoAtual.id, prato.id, idx, item)" 
+                                      class="btn-edit-quantidade" 
+                                      title="Editar quantidade">
+                                ✏️
+                              </button>
+                              <button @click="abrirModalSubstituicao(refeicaoAtual.id, prato.id, idx, item)" 
+                                      class="btn-substituir" 
+                                      title="Substituir alimento">
+                                🔄
+                              </button>
+                              <button @click="removerAlimentoIndividual(refeicaoAtual.id, prato.id, idx)" 
+                                      class="btn-delete-alimento" 
+                                      title="Remover alimento">
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                          <div class="alimento-info-completa">
+                            <div class="alimento-macros-inline">
+                              <div class="macro-inline">
+                                <span class="macro-label">Cal</span>
+                                <span class="macro-value">{{ (item.alimento.caloria * (item.porcao / item.alimento.porcaoReferencia)).toFixed(0) }}</span>
+                              </div>
+                              <div class="macro-inline">
+                                <span class="macro-label">Prot</span>
+                                <span class="macro-value">{{ (item.alimento.proteina * (item.porcao / item.alimento.porcaoReferencia)).toFixed(1) }}g</span>
+                              </div>
+                              <div class="macro-inline">
+                                <span class="macro-label">Carb</span>
+                                <span class="macro-value">{{ (item.alimento.carboidrato * (item.porcao / item.alimento.porcaoReferencia)).toFixed(1) }}g</span>
+                              </div>
+                              <div class="macro-inline">
+                                <span class="macro-label">Gord</span>
+                                <span class="macro-value">{{ (item.alimento.gordura * (item.porcao / item.alimento.porcaoReferencia)).toFixed(1) }}g</span>
+                              </div>
+                            </div>
+                            <div class="alimento-barras">
+                              <div class="alimento-barra-item">
+                                <div class="alimento-barra-cal" 
+                                     :style="{ 
+                                       '--progresso-width': `${Math.min(100, (calcularCaloriasAlimento(item) / (refeicaoAtual.metaCalorias || 1)) * 100)}%`,
+                                       '--cor-alimento': getCoresAlimento(idx).cal
+                                     }"></div>
+                                <span class="barra-label">{{ ((calcularCaloriasAlimento(item) / (refeicaoAtual.metaCalorias || 1)) * 100).toFixed(1) }}%</span>
+                              </div>
+                              <div class="alimento-barra-item">
+                                <div class="alimento-barra-prot" 
+                                     :style="{ 
+                                       '--progresso-width': `${Math.min(100, (calcularProteinasAlimento(item) / (refeicaoAtual.metaProteinas || 1)) * 100)}%`,
+                                       '--cor-alimento': getCoresAlimento(idx).prot
+                                     }"></div>
+                                <span class="barra-label">{{ ((calcularProteinasAlimento(item) / (refeicaoAtual.metaProteinas || 1)) * 100).toFixed(1) }}%</span>
+                              </div>
+                            </div>
+                            
                 </div>
               </div>
-              
-              <div class="alimentos-list" v-if="prato.alimentos && prato.alimentos.length > 0">
-                <ul>
-                  <li v-for="(item, idx) in prato.alimentos" :key="idx">
-                    <div class="alimento-item">
-                      <div class="alimento-header">
-                        <div class="alimento-nome">
-                          <strong>{{ item.alimento.nome }}</strong> 
-                          <span>({{ item.porcao }}g)</span>
-                        </div>
-                        <button @click="abrirModalSubstituicao(refeicaoAtual.id, prato.id, idx, item)" 
-                                class="btn-substituir" 
-                                title="Substituir alimento">
-                          🔄
-                        </button>
-                      </div>
-                      <div class="alimento-info-completa">
-                        <div class="alimento-macros-inline">
-                          <div class="macro-inline">
-                            <span class="macro-label">Cal</span>
-                            <span class="macro-value">{{ (item.alimento.caloria * (item.porcao / item.alimento.porcaoReferencia)).toFixed(0) }}</span>
-                          </div>
-                          <div class="macro-inline">
-                            <span class="macro-label">Prot</span>
-                            <span class="macro-value">{{ (item.alimento.proteina * (item.porcao / item.alimento.porcaoReferencia)).toFixed(1) }}g</span>
-                          </div>
-                          <div class="macro-inline">
-                            <span class="macro-label">Carb</span>
-                            <span class="macro-value">{{ (item.alimento.carboidrato * (item.porcao / item.alimento.porcaoReferencia)).toFixed(1) }}g</span>
-                          </div>
-                          <div class="macro-inline">
-                            <span class="macro-label">Gord</span>
-                            <span class="macro-value">{{ (item.alimento.gordura * (item.porcao / item.alimento.porcaoReferencia)).toFixed(1) }}g</span>
-                          </div>
-                        </div>
-                        <div class="alimento-barras">
-                          <div class="alimento-barra-item">
-                            <div class="alimento-barra-cal" 
-                                 :style="{ 
-                                   '--progresso-width': `${Math.min(100, (calcularCaloriasAlimento(item) / (refeicaoAtual.metaCalorias || 1)) * 100)}%`,
-                                   '--cor-alimento': getCoresAlimento(idx).cal
-                                 }"></div>
-                            <span class="barra-label">{{ ((calcularCaloriasAlimento(item) / (refeicaoAtual.metaCalorias || 1)) * 100).toFixed(1) }}%</span>
-                          </div>
-                          <div class="alimento-barra-item">
-                            <div class="alimento-barra-prot" 
-                                 :style="{ 
-                                   '--progresso-width': `${Math.min(100, (calcularProteinasAlimento(item) / (refeicaoAtual.metaProteinas || 1)) * 100)}%`,
-                                   '--cor-alimento': getCoresAlimento(idx).prot
-                                 }"></div>
-                            <span class="barra-label">{{ ((calcularProteinasAlimento(item) / (refeicaoAtual.metaProteinas || 1)) * 100).toFixed(1) }}%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-              <div v-else class="empty-message">
-                Nenhum alimento adicionado a este prato
-              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div v-else class="empty-message">
+                    Nenhum alimento adicionado a este prato
+        </div>
+                  
+                  <!-- Botão adicionar novo alimento -->
+                  <div class="add-alimento-section">
+                    <button @click="adicionarNovoAlimento(refeicaoAtual.id, prato.id)" class="btn-add-alimento">
+                      + Novo Alimento
+                    </button>
+      </div>
+      
+                  <!-- <div class="macronutrientes-chart">
+                    <svg viewBox="-13 -13 226 226" class="macronutrientes-svg">
+                      Área dos macronutrientes
+                      <polygon :points="getMacronutrientesPointsPrato(prato, refeicaoAtual)" 
+                               fill="var(--primary-color)" 
+                               fill-opacity="0.3" 
+                               stroke="white" 
+                               stroke-width="2"/>
+                      
+                      Marcações das metas (apenas caloria e proteína)
+                      <line x1="96" y1="20" x2="104" y2="20" stroke="green" stroke-width="4"/>
+<line x1="96" y1="180" x2="104" y2="180" stroke="blue" stroke-width="2"/>
+
+                      
+                      Labels reposicionados
+                      <text x="100" y="15" text-anchor="middle" class="chart-label" fill="white">Cal</text>
+                      <text x="190" y="105" text-anchor="start" class="chart-label" fill="white">Carb</text>
+                      <text x="100" y="195" text-anchor="middle" class="chart-label" fill="white">Prot</text>
+                      <text x="10" y="105" text-anchor="end" class="chart-label" fill="white">Gord</text>
+                    </svg>
+                  </div> -->
+                </div>
+        </div>
+      </div>
+      
+            <!-- Compatibilidade com estrutura antiga -->
+            <div v-else-if="refeicaoAtual.alimentos && refeicaoAtual.alimentos.length > 0" class="compatibilidade-antiga">
+              <p><em>⚠️ Refeição no formato antigo. Edite para atualizar para o novo formato.</em></p>
             </div>
+            
+            <div v-else class="empty-message">
+              <p>Nenhum prato criado nesta refeição ainda.</p>
+              <p><em>Use o botão abaixo para criar seu primeiro prato!</em></p>
+            </div>
+            
+            <!-- Botão sempre visível -->
+            <button @click="adicionarNovoPrato(refeicaoAtual)" class="btn-add-prato">
+              + Adicionar {{ refeicaoAtual.pratos && refeicaoAtual.pratos.length > 0 ? 'Nova Variação' : 'Primeiro Prato' }}
+      </button>
           </div>
+
           
-          <!-- Compatibilidade com estrutura antiga -->
-          <div v-else-if="refeicaoAtual.alimentos && refeicaoAtual.alimentos.length > 0" class="compatibilidade-antiga">
-            <p><em>⚠️ Refeição no formato antigo. Edite para atualizar para o novo formato.</em></p>
-          </div>
-          
-          <div v-else class="empty-message">
-            <p>Nenhum prato criado nesta refeição ainda.</p>
-            <p><em>Use o botão abaixo para criar seu primeiro prato!</em></p>
-          </div>
-          
-          <!-- Botão sempre visível -->
-          <button @click="adicionarNovoPrato(refeicaoAtual)" class="btn-add-prato">
-            + Adicionar {{ refeicaoAtual.pratos && refeicaoAtual.pratos.length > 0 ? 'Nova Variação' : 'Primeiro Prato' }}
-          </button>
         </div>
       </div>
     </div>
@@ -253,7 +331,7 @@
     <div v-if="showModal" class="modal-overlay">
       <div class="modal">
         <div class="modal-header">
-          <h2>{{ refeicaoAtual.id ? 'Editar' : 'Nova' }} Refeição</h2>
+          <h2>{{ refeicaoModal.id ? 'Editar' : 'Nova' }} Refeição</h2>
           <button @click="fecharModal" class="btn-close">&times;</button>
         </div>
         
@@ -261,31 +339,31 @@
           <form @submit.prevent="salvarRefeicao">
             <div class="form-group">
               <label for="nomeRefeicao">Nome da Refeição:</label>
-              <input type="text" id="nomeRefeicao" v-model="refeicaoAtual.nome" placeholder="Ex: Café da Manhã" />
+              <input type="text" id="nomeRefeicao" v-model="refeicaoModal.nome" placeholder="Ex: Café da Manhã" />
             </div>
             
             <div class="form-row">
               <div class="form-group">
                 <label for="metaCalorias">Meta de Calorias:</label>
-                <input type="number" id="metaCalorias" v-model.number="refeicaoAtual.metaCalorias" min="0" placeholder="Ex: 400" />
+                <input type="number" id="metaCalorias" v-model.number="refeicaoModal.metaCalorias" min="0" placeholder="Ex: 400" />
               </div>
               
               <div class="form-group">
                 <label for="metaProteinas">Meta de Proteínas (g):</label>
-                <input type="number" id="metaProteinas" v-model.number="refeicaoAtual.metaProteinas" min="0" step="0.1" placeholder="Ex: 25" />
+                <input type="number" id="metaProteinas" v-model.number="refeicaoModal.metaProteinas" min="0" step="0.1" placeholder="Ex: 25" />
               </div>
             </div>
             
-            <div v-if="refeicaoAtual.pratos && refeicaoAtual.pratos.length > 0">
+            <div v-if="refeicaoModal.pratos && refeicaoModal.pratos.length > 0">
               <h3>Pratos Criados</h3>
-              <div v-for="prato in refeicaoAtual.pratos" :key="prato.id" class="prato-preview">
+              <div v-for="prato in refeicaoModal.pratos" :key="prato.id" class="prato-preview">
                 <div class="prato-info">
                   <strong>{{ prato.nome }}</strong>
                   <span>{{ calcularCaloriasPrato(prato).toFixed(0) }} kcal | {{ calcularProteinasPrato(prato).toFixed(1) }}g prot</span>
                 </div>
                 <div class="prato-progress">
                   <div class="progress-bar">
-                    <div class="progress-fill" :style="{ width: `${Math.min(100, (calcularCaloriasPrato(prato) / (refeicaoAtual.metaCalorias || 1)) * 100)}%` }"></div>
+                    <div class="progress-fill" :style="{ width: `${Math.min(100, (calcularCaloriasPrato(prato) / (refeicaoModal.metaCalorias || 1)) * 100)}%` }"></div>
                   </div>
                 </div>
               </div>
@@ -329,8 +407,8 @@
               <div v-for="(item, idx) in pratoAtual.alimentos" :key="idx" class="alimento-row">
                 <div class="alimento-info">
                   <div class="alimento-nome">
-                    <strong>{{ item.alimento.nome }}</strong>
-                    <span>{{ (item.alimento.caloria * (item.porcao / item.alimento.porcaoReferencia)).toFixed(0) }} kcal</span>
+                  <strong>{{ item.alimento.nome }}</strong>
+                  <span>{{ (item.alimento.caloria * (item.porcao / item.alimento.porcaoReferencia)).toFixed(0) }} kcal</span>
                   </div>
                 </div>
                 <div class="alimento-actions">
@@ -365,9 +443,9 @@
                 </div>
                 
                                   <div class="form-group" v-if="alimentoSelecionadoPrato">
-                    <label for="porcaoAlimento">Porção (g):</label>
+                  <label for="porcaoAlimento">Porção (g):</label>
                     <input type="number" id="porcaoAlimento" v-model.number="porcaoAlimentoPrato" min="1" />
-                  </div>
+                </div>
               </div>
               
               <button type="button" @click="adicionarAlimentoAoPrato" class="btn-add" 
@@ -378,23 +456,23 @@
             
                          <!-- Informações nutricionais do prato -->
              <div class="nutricional-info">
-               <div class="info-item">
-                 <span>Calorias:</span>
+              <div class="info-item">
+                <span>Calorias:</span>
                  <strong>{{ caloriasTotalPrato.toFixed(0) }} kcal</strong>
-               </div>
-               <div class="info-item">
-                 <span>Proteínas:</span>
+              </div>
+              <div class="info-item">
+                <span>Proteínas:</span>
                  <strong>{{ proteinasTotalPrato.toFixed(1) }} g</strong>
-               </div>
-               <div class="info-item">
-                 <span>Carboidratos:</span>
+              </div>
+              <div class="info-item">
+                <span>Carboidratos:</span>
                  <strong>{{ carboidratosTotalPrato.toFixed(1) }} g</strong>
-               </div>
-               <div class="info-item">
-                 <span>Gorduras:</span>
+              </div>
+              <div class="info-item">
+                <span>Gorduras:</span>
                  <strong>{{ gordurasTotalPrato.toFixed(1) }} g</strong>
-               </div>
-             </div>
+              </div>
+            </div>
             
             <div class="modal-footer">
               <button type="button" @click="fecharPratoModal" class="btn-cancel">Cancelar</button>
@@ -444,44 +522,199 @@
           
           <div class="substitutos-lista">
             <h3>Substitutos Disponíveis:</h3>
-            <div v-if="substitutosDisponiveis.length > 0" class="substitutos-grid">
-                             <div v-for="substituto in substitutosDisponiveis" 
-                    :key="substituto.id" 
-                    @click="selecionarSubstituto(substituto)" 
-                    class="substituto-card">
-                 <div class="substituto-header">
-                   <strong>{{ substituto.nome }}</strong>
-                   <span class="similaridade">{{ calcularSimilaridadeTexto(alimentoOriginal?.alimento, substituto) }}</span>
-                 </div>
-                 <div class="substituto-macros">
-                   <div class="porcao-info">
-                     <span class="porcao-label">Porção equivalente:</span>
-                     <span class="porcao-value">{{ calcularPorcaoSubstituta(alimentoOriginal, substituto) }}g</span>
-                   </div>
-                   <div class="macros-grid">
-                     <div class="macro-item">
-                       <span class="macro-label">Cal:</span>
-                       <span class="macro-value">{{ ((substituto.caloria * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(0) }}</span>
-                     </div>
-                     <div class="macro-item">
-                       <span class="macro-label">Prot:</span>
-                       <span class="macro-value">{{ ((substituto.proteina * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(1) }}g</span>
-                     </div>
-                     <div class="macro-item">
-                       <span class="macro-label">Carb:</span>
-                       <span class="macro-value">{{ ((substituto.carboidrato * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(1) }}g</span>
-                     </div>
-                     <div class="macro-item">
-                       <span class="macro-label">Gord:</span>
-                       <span class="macro-value">{{ ((substituto.gordura * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(1) }}g</span>
-                     </div>
-                   </div>
-                 </div>
-               </div>
+            
+            <!-- Campo de busca/filtro -->
+            <div class="busca-input-group">
+              <input type="text" 
+                     v-model="buscaSubstituto" 
+                     @input="filtrarSubstitutos"
+                     placeholder="🔍 Filtrar substitutos por nome..."
+                     class="busca-input" />
+              <button v-if="buscaSubstituto" 
+                      @click="limparBusca" 
+                      class="btn-limpar-busca" 
+                      type="button">
+                ✕
+              </button>
             </div>
-            <div v-else class="empty-message">
+            
+            <div v-if="substitutosFiltrados.length > 0" class="substitutos-grid">
+              <div v-for="substituto in substitutosFiltrados" 
+                   :key="substituto.id" 
+                   @click="selecionarSubstituto(substituto)" 
+                   class="substituto-card">
+                <div class="substituto-header">
+                  <strong>{{ substituto.nome }}</strong>
+                  <span class="similaridade">{{ calcularSimilaridadeTexto(alimentoOriginal?.alimento, substituto) }}</span>
+                </div>
+                <div class="substituto-macros">
+                  <div class="porcao-info">
+                    <span class="porcao-label">Porção equivalente:</span>
+                    <span class="porcao-value">{{ calcularPorcaoSubstituta(alimentoOriginal, substituto) }}g</span>
+                  </div>
+                  <div class="macros-grid">
+                    <div class="macro-item">
+                      <span class="macro-label">Cal:</span>
+                      <span class="macro-value">{{ ((substituto.caloria * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(0) }}</span>
+                    </div>
+                    <div class="macro-item">
+                      <span class="macro-label">Prot:</span>
+                      <span class="macro-value">{{ ((substituto.proteina * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(1) }}g</span>
+                    </div>
+                    <div class="macro-item">
+                      <span class="macro-label">Carb:</span>
+                      <span class="macro-value">{{ ((substituto.carboidrato * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(1) }}g</span>
+                    </div>
+                    <div class="macro-item">
+                      <span class="macro-label">Gord:</span>
+                      <span class="macro-value">{{ ((substituto.gordura * calcularPorcaoSubstituta(alimentoOriginal, substituto)) / substituto.porcaoReferencia).toFixed(1) }}g</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else-if="buscaSubstituto && substitutosDisponiveis.length > 0" class="empty-message">
+              Nenhum substituto encontrado com o filtro "{{ buscaSubstituto }}".
+            </div>
+            
+            <div v-else-if="substitutosDisponiveis.length === 0" class="empty-message">
               Nenhum substituto encontrado para este alimento.
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal de edição de quantidade -->
+    <div v-if="showQuantidadeModal" class="modal-overlay">
+      <div class="modal modal-quantidade">
+        <div class="modal-header">
+          <h2>{{ isNovoAlimento ? 'Novo Alimento' : 'Editar Alimento' }}</h2>
+          <button @click="fecharModalQuantidade" class="btn-close">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <form @submit.prevent="salvarNovaQuantidade">
+            <!-- Seleção de alimento -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="tipoAlimentoModalQuantidade">Tipo de Alimento:</label>
+                <select v-model="tipoAlimentoModalQuantidade" id="tipoAlimentoModalQuantidade" required>
+                  <option value="">Selecione um tipo</option>
+                  <option v-for="tipo in tiposAlimentos" :key="tipo" :value="tipo">{{ tipo }}</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="alimentoSelecionadoModalQuantidade">Alimento:</label>
+                <select v-model="alimentoSelecionadoModalQuantidade" id="alimentoSelecionadoModalQuantidade" required>
+                  <option value="">Selecione um alimento</option>
+                  <option v-for="alimento in alimentosPorTipoSelecionadoModalQuantidade" :key="alimento.id" :value="alimento.id">{{ alimento.nome }}</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="novaQuantidadeInput">Quantidade (gramas):</label>
+              <input type="number" 
+                     id="novaQuantidadeInput" 
+                     v-model.number="novaQuantidade" 
+                     min="0.1" 
+                     step="0.1" 
+                     required />
+            </div>
+            
+            <div class="macros-previsao" v-if="novaQuantidade > 0 && alimentoPrevisaoSelecionado">
+              <h4>Valores calculados:</h4>
+              <div class="macros-grid">
+                <span>{{ ((alimentoPrevisaoSelecionado?.caloria || 0) * novaQuantidade / (alimentoPrevisaoSelecionado?.porcaoReferencia || 1)).toFixed(0) }} kcal</span>
+                <span>{{ ((alimentoPrevisaoSelecionado?.proteina || 0) * novaQuantidade / (alimentoPrevisaoSelecionado?.porcaoReferencia || 1)).toFixed(1) }}g prot</span>
+                <span>{{ ((alimentoPrevisaoSelecionado?.carboidrato || 0) * novaQuantidade / (alimentoPrevisaoSelecionado?.porcaoReferencia || 1)).toFixed(1) }}g carb</span>
+                <span>{{ ((alimentoPrevisaoSelecionado?.gordura || 0) * novaQuantidade / (alimentoPrevisaoSelecionado?.porcaoReferencia || 1)).toFixed(1) }}g gord</span>
+              </div>
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" @click="fecharModalQuantidade" class="btn-cancel">Cancelar</button>
+              <button type="submit" class="btn-save">
+                {{ isNovoAlimento ? 'Adicionar Alimento' : 'Salvar Alterações' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de configuração do algoritmo genético -->
+    <div v-if="showConfigAlgoritmoModal" class="modal-overlay">
+      <div class="modal modal-config-algoritmo">
+        <div class="modal-header">
+          <h2>🧮 Configurar Algoritmo Genético</h2>
+          <button @click="fecharModalConfigAlgoritmo" class="btn-close">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="info-algoritmo">
+            
+            <p>Configure restrições opcionais para cada alimento (deixe em branco para sem limite):</p>
+          </div>
+          
+          <div class="restricoes-lista">
+            <div v-for="(restricao, index) in restricoesAlimentos" :key="index" class="restricao-item">
+              <div class="alimento-header-config">
+                <div class="alimento-info-config">
+                  <strong>{{ restricao.alimento.nome }}</strong>
+                  <span class="quantidade-atual">Atual: {{ restricao.quantidadeAtual }}g</span>
+                </div>
+                <label class="checkbox-restricao">
+                  <input type="checkbox" v-model="restricao.usarRestricao" />
+                  Usar restrições
+                </label>
+              </div>
+              
+              <div v-if="restricao.usarRestricao" class="restricoes-inputs">
+                <div class="input-group">
+                  <label>Mínimo (g):</label>
+                  <input type="number" 
+                         v-model.number="restricao.minimo" 
+                         min="0" 
+                         step="0.1" 
+                         placeholder="Ex: 50" />
+                </div>
+                <div class="input-group">
+                  <label>Máximo (g):</label>
+                  <input type="number" 
+                         v-model.number="restricao.maximo" 
+                         min="0" 
+                         step="0.1" 
+                         placeholder="Ex: 200" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="resumo-restricoes" v-if="restricoesAlimentos.some(r => r.usarRestricao)">
+            <h4>📋 Resumo das restrições ativas:</h4>
+            <ul>
+              <li v-for="restricao in restricoesAlimentos.filter(r => r.usarRestricao)" :key="restricao.alimento.id">
+                <strong>{{ restricao.alimento.nome }}:</strong>
+                <span v-if="restricao.minimo && restricao.maximo">
+                  {{ restricao.minimo }}g - {{ restricao.maximo }}g
+                </span>
+                <span v-else-if="restricao.minimo">
+                  Mínimo {{ restricao.minimo }}g
+                </span>
+                <span v-else-if="restricao.maximo">
+                  Máximo {{ restricao.maximo }}g
+                </span>
+              </li>
+            </ul>
+          </div>
+          
+          <div class="modal-footer">
+            <button type="button" @click="fecharModalConfigAlgoritmo" class="btn-cancel">Cancelar</button>
+            <button type="button" @click="salvarRestricoes" class="btn-save">💾 Salvar Restrições</button>
           </div>
         </div>
       </div>
@@ -516,7 +749,7 @@ export default {
     
     // Modal de edição de refeição
     const showModal = ref(false);
-    const refeicaoAtual = ref({ 
+    const refeicaoModal = ref({ 
       nome: '', 
       metaCalorias: 0, 
       metaProteinas: 0, 
@@ -533,6 +766,23 @@ export default {
     const alimentoOriginal = ref(null);
     const contextoSubstituicao = ref({ refeicaoId: null, pratoId: null, index: null });
     const substitutosDisponiveis = ref([]);
+    const buscaSubstituto = ref('');
+
+    // Modal de edição de quantidade
+    const showQuantidadeModal = ref(false);
+    const alimentoQuantidade = ref(null);
+    const novaQuantidade = ref(0);
+    const contextoQuantidade = ref({ refeicaoId: null, pratoId: null, index: null });
+    const modoEdicaoCompleta = ref(false); // Se true, permite alterar o alimento também
+    const tipoAlimentoModalQuantidade = ref('');
+    const alimentoSelecionadoModalQuantidade = ref('');
+    const isAdicionandoNovoAlimento = ref(false); // Flag específica para novo alimento
+
+    // Modal de configuração do algoritmo genético
+    const showConfigAlgoritmoModal = ref(false);
+    const pratoParaCalculo = ref(null);
+    const refeicaoParaCalculo = ref(null);
+    const restricoesAlimentos = ref([]);
 
     // Estados para navegação entre refeições
     const currentRefeicaoIndex = ref(0);
@@ -557,37 +807,37 @@ export default {
     const proteinasAlocadas = computed(() => planoStore.proteinasAlocadas);
     const gordurasAlocadas = computed(() => planoStore.gordurasAlocadas);
     
-    // Calorias totais da refeição atual (compatibilidade - nova estrutura usa pratos)
+    // Calorias totais da refeição modal (compatibilidade - nova estrutura usa pratos)
     const caloriasTotalRefeicaoAtual = computed(() => {
-      if (!refeicaoAtual.value || !refeicaoAtual.value.alimentos) return 0;
-      return refeicaoAtual.value.alimentos.reduce((total, item) => {
+      if (!refeicaoModal.value || !refeicaoModal.value.alimentos) return 0;
+      return refeicaoModal.value.alimentos.reduce((total, item) => {
         if (!item.alimento) return total;
         return total + (item.alimento.caloria * (item.porcao / item.alimento.porcaoReferencia));
       }, 0);
     });
     
-    // Proteínas totais da refeição atual (compatibilidade - nova estrutura usa pratos)
+    // Proteínas totais da refeição modal (compatibilidade - nova estrutura usa pratos)
     const proteinasTotalRefeicaoAtual = computed(() => {
-      if (!refeicaoAtual.value || !refeicaoAtual.value.alimentos) return 0;
-      return refeicaoAtual.value.alimentos.reduce((total, item) => {
+      if (!refeicaoModal.value || !refeicaoModal.value.alimentos) return 0;
+      return refeicaoModal.value.alimentos.reduce((total, item) => {
         if (!item.alimento) return total;
         return total + (item.alimento.proteina * (item.porcao / item.alimento.porcaoReferencia));
       }, 0);
     });
     
-    // Carboidratos totais da refeição atual (compatibilidade - nova estrutura usa pratos)
+    // Carboidratos totais da refeição modal (compatibilidade - nova estrutura usa pratos)
     const carboidratosTotalRefeicaoAtual = computed(() => {
-      if (!refeicaoAtual.value || !refeicaoAtual.value.alimentos) return 0;
-      return refeicaoAtual.value.alimentos.reduce((total, item) => {
+      if (!refeicaoModal.value || !refeicaoModal.value.alimentos) return 0;
+      return refeicaoModal.value.alimentos.reduce((total, item) => {
         if (!item.alimento) return total;
         return total + (item.alimento.carboidrato * (item.porcao / item.alimento.porcaoReferencia));
       }, 0);
     });
     
-    // Gorduras totais da refeição atual (compatibilidade - nova estrutura usa pratos)
+    // Gorduras totais da refeição modal (compatibilidade - nova estrutura usa pratos)
     const gordurasTotalRefeicaoAtual = computed(() => {
-      if (!refeicaoAtual.value || !refeicaoAtual.value.alimentos) return 0;
-      return refeicaoAtual.value.alimentos.reduce((total, item) => {
+      if (!refeicaoModal.value || !refeicaoModal.value.alimentos) return 0;
+      return refeicaoModal.value.alimentos.reduce((total, item) => {
         if (!item.alimento) return total;
         return total + (item.alimento.gordura * (item.porcao / item.alimento.porcaoReferencia));
       }, 0);
@@ -596,7 +846,7 @@ export default {
     
 
          // Usar computed diretamente, mas de forma mais simples como na AlimentosPage
-     const tiposAlimentos = computed(() => {
+    const tiposAlimentos = computed(() => {
        try {
          console.log('Recalculando tipos de alimentos...');
          console.log('alimentosStore:', alimentosStore);
@@ -644,11 +894,11 @@ export default {
            alimentosStore.carregarDoLocalStorage();
          }
        }
-     });
+    });
     
-         // Alimentos do tipo selecionado
-     const alimentosPorTipoSelecionado = computed(() => {
-       if (!tipoAlimentoSelecionado.value) return [];
+    // Alimentos do tipo selecionado
+    const alimentosPorTipoSelecionado = computed(() => {
+      if (!tipoAlimentoSelecionado.value) return [];
        try {
          if (!alimentosStore || !alimentosStore.alimentos) {
            return [];
@@ -674,6 +924,46 @@ export default {
          console.warn('Erro ao obter alimentos por tipo:', error);
          return [];
        }
+     });
+
+     // Computed para alimentos do modal de quantidade
+     const alimentosPorTipoSelecionadoModalQuantidade = computed(() => {
+       if (!tipoAlimentoModalQuantidade.value) return [];
+       try {
+         if (!alimentosStore || !alimentosStore.alimentos) {
+           return [];
+         }
+         
+         return alimentosStore.getAlimentosByTipo(tipoAlimentoModalQuantidade.value) || [];
+       } catch (error) {
+         console.warn('Erro ao obter alimentos por tipo:', error);
+         return [];
+       }
+     });
+
+     // Alimento selecionado para previsão
+     const alimentoPrevisaoSelecionado = computed(() => {
+       if (alimentoSelecionadoModalQuantidade.value) {
+         return alimentosStore.alimentos.find(a => a.id === alimentoSelecionadoModalQuantidade.value);
+       }
+       return null;
+     });
+
+     // Substitutos filtrados pela busca
+     const substitutosFiltrados = computed(() => {
+       if (!buscaSubstituto.value.trim()) {
+         return substitutosDisponiveis.value;
+       }
+       
+       const termo = buscaSubstituto.value.trim().toLowerCase();
+       return substitutosDisponiveis.value.filter(substituto => 
+         substituto.nome.toLowerCase().includes(termo)
+       );
+     });
+
+     // Verifica se é um novo alimento
+     const isNovoAlimento = computed(() => {
+       return isAdicionandoNovoAlimento.value;
      });
     
     // Computed para totais nutricionais do prato em edição
@@ -705,7 +995,7 @@ export default {
     
     // Criar uma nova refeição
     const criarNovaRefeicao = () => {
-      refeicaoAtual.value = {
+      refeicaoModal.value = {
         nome: '',
         metaCalorias: 0,
         metaProteinas: 0,
@@ -717,7 +1007,7 @@ export default {
     
     // Editar refeição existente
     const editarRefeicao = (refeicao) => {
-      refeicaoAtual.value = JSON.parse(JSON.stringify(refeicao)); // Clone profundo
+      refeicaoModal.value = JSON.parse(JSON.stringify(refeicao)); // Clone profundo
       showModal.value = true;
     };
     
@@ -749,7 +1039,7 @@ export default {
           porcaoReferencia: porcaoAlimento.value
         };
 
-        refeicaoAtual.value.alimentos.push(itemAlimento);
+        refeicaoModal.value.alimentos.push(itemAlimento);
         
         // Limpar seleção
         alimentoSelecionado.value = '';
@@ -759,7 +1049,7 @@ export default {
     
     // Remover alimento da refeição atual
     const removerAlimentoDaRefeicao = (index) => {
-      refeicaoAtual.value.alimentos.splice(index, 1);
+      refeicaoModal.value.alimentos.splice(index, 1);
     };
     
     // Recalcular calorias quando as porções são alteradas
@@ -769,27 +1059,27 @@ export default {
     
     // Salvar a refeição atual
     const salvarRefeicao = () => {
-      if (!refeicaoAtual.value.nome) {
+      if (!refeicaoModal.value.nome) {
         alert('Informe o nome da refeição.');
         return;
       }
       
-      if (!refeicaoAtual.value.metaCalorias || refeicaoAtual.value.metaCalorias <= 0) {
+      if (!refeicaoModal.value.metaCalorias || refeicaoModal.value.metaCalorias <= 0) {
         alert('Informe uma meta de calorias válida.');
         return;
       }
       
-      if (!refeicaoAtual.value.metaProteinas || refeicaoAtual.value.metaProteinas <= 0) {
+      if (!refeicaoModal.value.metaProteinas || refeicaoModal.value.metaProteinas <= 0) {
         alert('Informe uma meta de proteínas válida.');
         return;
       }
       
-      if (refeicaoAtual.value.id) {
+      if (refeicaoModal.value.id) {
         // Editar refeição existente
-        planoStore.atualizarRefeicao(refeicaoAtual.value);
+        planoStore.atualizarRefeicao(refeicaoModal.value);
       } else {
         // Adicionar nova refeição
-        planoStore.adicionarRefeicao(refeicaoAtual.value);
+        planoStore.adicionarRefeicao(refeicaoModal.value);
       }
       
       fecharModal();
@@ -805,10 +1095,15 @@ export default {
     
     // Abrir modal de substituição
     const abrirModalSubstituicao = (refeicaoId, pratoId, index, item) => {
-      alimentoOriginal.value = item;
-      contextoSubstituicao.value = { refeicaoId, pratoId, index };
-      substitutosDisponiveis.value = getSubstitutosPossiveis(item.alimento);
-      showSubstituicaoModal.value = true;
+      try {
+        alimentoOriginal.value = item;
+        contextoSubstituicao.value = { refeicaoId, pratoId, index };
+        substitutosDisponiveis.value = getSubstitutosPossiveis(item.alimento);
+        showSubstituicaoModal.value = true;
+      } catch (error) {
+        console.error('Erro ao abrir modal de substituição:', error);
+        alert('Erro ao abrir modal de substituição. Tente novamente.');
+      }
     };
 
     // Fechar modal de substituição
@@ -817,6 +1112,17 @@ export default {
       alimentoOriginal.value = null;
       contextoSubstituicao.value = { refeicaoId: null, pratoId: null, index: null };
       substitutosDisponiveis.value = [];
+      buscaSubstituto.value = '';
+    };
+
+    // Filtrar substitutos (não precisa de lógica especial, o computed cuida disso)
+    const filtrarSubstitutos = () => {
+      // A filtragem é feita automaticamente pelo computed substitutosFiltrados
+    };
+
+    // Limpar busca
+    const limparBusca = () => {
+      buscaSubstituto.value = '';
     };
 
     // Selecionar substituto
@@ -890,10 +1196,22 @@ export default {
     
     // Obter substitutos possíveis para um alimento
          const getSubstitutosPossiveis = (alimento) => {
-       if (!alimentosStore || !alimentosStore.alimentos) {
+       try {
+         if (!alimentosStore || !alimentosStore.alimentos) {
+           console.warn('Store de alimentos não disponível');
+           return [];
+         }
+         
+         if (!alimento) {
+           console.warn('Alimento não fornecido para busca de substitutos');
+           return [];
+         }
+         
+         return alimentosStore.getSubstitutosPossiveis(alimento) || [];
+       } catch (error) {
+         console.error('Erro ao obter substitutos possíveis:', error);
          return [];
        }
-       return alimentosStore.getSubstitutosPossiveis(alimento);
      };
     
 
@@ -925,8 +1243,8 @@ export default {
     // Normalizar alimento para 100g
     const normalizarAlimento = (alimento) => {
       const fatorNormalizacao = 100 / alimento.porcaoReferencia;
-      
-      return {
+    
+    return {
         caloria: alimento.caloria * fatorNormalizacao,
         proteina: alimento.proteina * fatorNormalizacao,
         carboidrato: alimento.carboidrato * fatorNormalizacao,
@@ -1044,6 +1362,11 @@ ${alimento2.nome}:
       showPratoModal.value = true;
     };
 
+    // Duplicar prato
+    const duplicarPrato = (refeicao, prato) => {
+      planoStore.duplicarPrato(refeicao.id, prato);
+    };
+
     // Remover prato
     const removerPrato = (refeicaoId, pratoId) => {
       if (confirm('Tem certeza que deseja remover este prato?')) {
@@ -1056,6 +1379,11 @@ ${alimento2.nome}:
       if (pratoAtual.value.alimentos.length === 0) {
         alert('Adicione pelo menos um alimento ao prato.');
         return;
+      }
+      
+      // Garantir que o prato tenha a estrutura de restrições
+      if (!pratoAtual.value.restricoes) {
+        pratoAtual.value.restricoes = [];
       }
       
       if (pratoAtual.value.id) {
@@ -1110,6 +1438,412 @@ ${alimento2.nome}:
       // Mas pode ser usada para forçar atualizações se necessário
     };
 
+    // Algoritmo Genético para calcular quantidades ideais
+    /**
+ * Calcula as quantidades ideais (em g) de cada alimento de um prato
+ * para se aproximar das metas de calorias e proteínas usando
+ * um algoritmo genético simples.
+ */
+const calcularQuantidades = (prato, refeicao) => {
+  if (!prato.alimentos?.length) {
+    alert('Este prato não possui alimentos para calcular.');
+    return;
+  }
+
+  // Preparar dados para o modal de configuração
+  pratoParaCalculo.value = prato;
+  refeicaoParaCalculo.value = refeicao;
+  
+  // Inicializar restrições, carregando valores salvos se existirem
+  restricoesAlimentos.value = prato.alimentos.map((item, index) => {
+    // Buscar restrição salva para este alimento
+    const restricaoSalva = prato.restricoes?.find(r => r.index === index);
+    
+    return {
+      alimento: item.alimento,
+      quantidadeAtual: item.porcao,
+      minimo: restricaoSalva?.minimo || null,
+      maximo: restricaoSalva?.maximo || null,
+      usarRestricao: !!restricaoSalva
+    };
+  });
+  
+  showConfigAlgoritmoModal.value = true;
+};
+
+// Executar algoritmo genético com restrições
+const executarAlgoritmoComRestricoes = (prato, refeicao) => {
+  // Verificar se há restrições salvas para este prato
+  const restricoesSalvasPrato = prato.restricoes || [];
+  
+  if (restricoesSalvasPrato.length === 0) {
+    if (!confirm('Nenhuma restrição definida para este prato. Deseja executar o algoritmo sem restrições?')) {
+      return;
+    }
+  }
+
+  /* ----------------------- Configurações básicas ----------------------- */
+  const META_CAL   = refeicao.metaCalorias   || 500; // kcal
+  const META_PROT  = refeicao.metaProteinas  || 40;  // g
+
+  const NUM_INDIVIDUOS = 400;   // população menor → mais rápido
+  const NUM_GERACOES   = 400;
+  const TAXA_MUTACAO   = 0.10;
+
+  /* ---------------------- Dados normalizados do prato ------------------ */
+  const alimentos = prato.alimentos.map(item => ({
+    nome      : item.alimento.nome,
+    proteina  : item.alimento.proteina,         // p/ porçãoRef
+    calorias  : item.alimento.caloria,          // p/ porçãoRef
+    porcaoRef : item.alimento.porcaoReferencia  // g
+  }));
+
+  /* ---------- Limite de gramas plausível para cada alimento ------------ *
+   * Quantidade que, se usada sozinha, atinge exatamente META_CAL.         *
+   * gramsMax = META_CAL * porcaoRef / calorias_por_porcao                 */
+  const maxGramas = alimentos.map(a => (META_CAL * a.porcaoRef) / a.calorias);
+
+  /* ------------------- Distribuição normal helper ---------------------- */
+  function normalRandom(mu = 0, sigma = 1) {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return mu + sigma * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  /* ---------------------- Geração de indivíduos ------------------------ */
+  function gerarIndividuo() {
+    return maxGramas.map((max, i) => {
+      const restricaoSalva = restricoesSalvasPrato.find(r => r.index === i);
+      
+      let minGrams = 0;
+      let maxGrams = max;
+      
+      if (restricaoSalva && restricaoSalva.usarRestricao) {
+        if (restricaoSalva.minimo !== null && restricaoSalva.minimo !== '') {
+          minGrams = Math.max(minGrams, parseFloat(restricaoSalva.minimo));
+        }
+        if (restricaoSalva.maximo !== null && restricaoSalva.maximo !== '') {
+          maxGrams = Math.min(maxGrams, parseFloat(restricaoSalva.maximo));
+        }
+      }
+      
+      const media  = (minGrams + maxGrams) * 0.5;
+      const desvio = (maxGrams - minGrams) * 0.15;
+      const g      = normalRandom(media, desvio);
+      return Math.max(minGrams, Math.min(maxGrams, g));
+    });
+  }
+
+  /* --------------------------- Fitness --------------------------------- */
+  function calcularFitness(ind) {
+    let cal = 0, prot = 0;
+    for (let i = 0; i < alimentos.length; i++) {
+      // calorias / g  e  proteínas / g
+      const calPorG  = alimentos[i].calorias / alimentos[i].porcaoRef;
+      const protPorG = alimentos[i].proteina / alimentos[i].porcaoRef;
+      cal  += calPorG  * ind[i];
+      prot += protPorG * ind[i];
+    }
+    const erroCal  = (cal  - META_CAL)  ** 2;
+    const erroProt = (prot - META_PROT) ** 2;
+    return { fitness: erroCal + erroProt, cal, prot };
+  }
+
+  /* ----------------------- Operadores GA ------------------------------- */
+  const selecionar = (pop, fits) => {
+    const a = Math.floor(Math.random() * pop.length);
+    const b = Math.floor(Math.random() * pop.length);
+    return fits[a].fitness < fits[b].fitness ? pop[a] : pop[b];
+  };
+
+  const cruzar = (pai, mae) => pai.map((v, i) => (v + mae[i]) / 2);
+
+  const mutar = ind => ind.map((v, i) => {
+    if (Math.random() < TAXA_MUTACAO) {
+      const restricaoSalva = restricoesSalvasPrato.find(r => r.index === i);
+      
+      let minGrams = 0;
+      let maxGrams = maxGramas[i];
+      
+      if (restricaoSalva && restricaoSalva.usarRestricao) {
+        if (restricaoSalva.minimo !== null && restricaoSalva.minimo !== '') {
+          minGrams = Math.max(minGrams, parseFloat(restricaoSalva.minimo));
+        }
+        if (restricaoSalva.maximo !== null && restricaoSalva.maximo !== '') {
+          maxGrams = Math.min(maxGrams, parseFloat(restricaoSalva.maximo));
+        }
+      }
+      
+      const passo = (maxGrams - minGrams) * 0.05;         // ±5% da faixa permitida
+      const novo  = v + (Math.random() - 0.5) * 2 * passo;
+      return Math.max(minGrams, Math.min(maxGrams, novo));
+    }
+    return v;
+  });
+
+  /* ---------------------- Algoritmo Genético --------------------------- */
+  let populacao = Array.from({ length: NUM_INDIVIDUOS }, gerarIndividuo);
+  let melhorGlobal = null;
+
+  for (let gen = 0; gen < NUM_GERACOES; gen++) {
+    const fits = populacao.map(calcularFitness);
+
+    // elitismo: guarda o melhor da geração
+    const [bestIdx] = fits
+      .map((f, idx) => [idx, f.fitness])
+      .sort((a, b) => a[1] - b[1])[0];
+    const elite = populacao[bestIdx];
+
+    if (!melhorGlobal || fits[bestIdx].fitness < melhorGlobal.fitness) {
+      melhorGlobal = { ...fits[bestIdx], ind: elite.slice() };
+    }
+
+    const novaPop = [elite]; // garante que o melhor permanece
+    while (novaPop.length < NUM_INDIVIDUOS) {
+      const pai  = selecionar(populacao, fits);
+      const mae  = selecionar(populacao, fits);
+      const filho = mutar(cruzar(pai, mae));
+      novaPop.push(filho);
+    }
+    populacao = novaPop;
+  }
+
+  /* -------------------- Aplica os resultados --------------------------- */
+  melhorGlobal.ind.forEach((g, i) => {
+    // Arredonda para 1 casa decimal
+    prato.alimentos[i].porcao = Math.round(g * 10) / 10;
+  });
+
+  /* ------------------------ Feedback ao usuário ------------------------ */
+  let msg = `🧮 QUANTIDADES CALCULADAS:\n\n`;
+  melhorGlobal.ind.forEach((g, i) => {
+    msg += `${alimentos[i].nome}: ${g.toFixed(1)} g\n`;
+  });
+  msg += `\n📊 TOTAIS CALCULADOS:\n`;
+  msg += `• Calorias : ${melhorGlobal.cal.toFixed(1)} kcal (meta: ${META_CAL})\n`;
+  msg += `• Proteínas: ${melhorGlobal.prot.toFixed(1)} g   (meta: ${META_PROT})\n`;
+
+  const erroCal  = Math.abs(melhorGlobal.cal  - META_CAL);
+  const erroProt = Math.abs(melhorGlobal.prot - META_PROT);
+
+  if (erroCal < 10 && erroProt < 2) {
+    msg += `\n✅ Excelente aproximação das metas!`;
+  } else if (erroCal < 50 && erroProt < 5) {
+    msg += `\n👍 Boa aproximação das metas!`;
+  } else {
+    msg += `\n⚠️ Pode ser difícil atingir as metas exatas com estes alimentos.`;
+  }
+
+  alert(msg);
+  planoStore.atualizarPrato(refeicao.id, prato);
+};
+
+// Fechar modal de configuração do algoritmo
+const fecharModalConfigAlgoritmo = () => {
+  showConfigAlgoritmoModal.value = false;
+  pratoParaCalculo.value = null;
+  refeicaoParaCalculo.value = null;
+  restricoesAlimentos.value = [];
+};
+
+// Abrir configuração de restrições
+const abrirConfigRestricoes = (prato, refeicao) => {
+  pratoParaCalculo.value = prato;
+  refeicaoParaCalculo.value = refeicao;
+  
+  // Carregar restrições já salvas para este prato
+  const restricoesSalvasPrato = prato.restricoes || [];
+  
+  // Resetar restrições
+  restricoesAlimentos.value = [];
+  
+  // Criar lista de restrições para o modal
+  prato.alimentos.forEach((item, index) => {
+    const restricaoExistente = restricoesSalvasPrato.find(r => r.index === index);
+    
+    restricoesAlimentos.value.push({
+      index: index,
+      alimento: item.alimento,
+      quantidadeAtual: item.porcao,
+      usarRestricao: !!restricaoExistente,
+      minimo: restricaoExistente?.minimo || item.porcao,
+      maximo: restricaoExistente?.maximo || item.porcao
+    });
+  });
+  
+  showConfigAlgoritmoModal.value = true;
+};
+
+// Salvar restrições
+const salvarRestricoes = () => {
+  const restricoesAtivas = restricoesAlimentos.value
+    .map((r, index) => ({ ...r, index }))
+    .filter(r => r.usarRestricao);
+  
+  // Salvar diretamente no prato
+  pratoParaCalculo.value.restricoes = restricoesAtivas;
+  
+  // Atualizar no store
+  const refeicao = refeicoes.value.find(r => r.pratos?.some(p => p.id === pratoParaCalculo.value.id));
+  if (refeicao) {
+    planoStore.atualizarPrato(refeicao.id, pratoParaCalculo.value);
+  }
+  
+  // Mostrar mensagem de sucesso
+  alert(`Restrições salvas com sucesso! ${restricoesAtivas.length} restrições definidas.`);
+  
+  fecharModalConfigAlgoritmo();
+};
+
+// Editar quantidade de um alimento específico
+const editarQuantidadeAlimento = (refeicaoId, pratoId, alimentoIndex, item) => {
+  try {
+    alimentoQuantidade.value = item;
+    novaQuantidade.value = item.porcao;
+    contextoQuantidade.value = { refeicaoId, pratoId, index: alimentoIndex };
+    modoEdicaoCompleta.value = true; // Vai direto para modo completo
+    isAdicionandoNovoAlimento.value = false; // Flag para edição
+    
+    // Pre-selecionar o tipo e alimento atual
+    const alimentoAtual = item.alimento;
+    
+    // Resetar seleções primeiro
+    tipoAlimentoModalQuantidade.value = '';
+    alimentoSelecionadoModalQuantidade.value = '';
+    
+    // Verificar se há tipos de alimentos disponíveis
+    if (tiposAlimentos.value && tiposAlimentos.value.length > 0) {
+      // Tentar encontrar o tipo do alimento atual
+      for (const tipo of tiposAlimentos.value) {
+        try {
+          const alimentosDoTipo = alimentosStore.getAlimentosByTipo(tipo) || [];
+          if (alimentosDoTipo.some(a => a.id === alimentoAtual.id)) {
+            tipoAlimentoModalQuantidade.value = tipo;
+            alimentoSelecionadoModalQuantidade.value = alimentoAtual.id;
+            break;
+          }
+        } catch (error) {
+          console.warn('Erro ao buscar alimentos do tipo:', tipo, error);
+          continue;
+        }
+      }
+    }
+    
+    showQuantidadeModal.value = true;
+  } catch (error) {
+    console.error('Erro ao editar quantidade do alimento:', error);
+    alert('Erro ao abrir modal de edição. Tente novamente.');
+  }
+};
+
+// Salvar nova quantidade
+const salvarNovaQuantidade = () => {
+  const quantidade = parseFloat(novaQuantidade.value);
+  if (isNaN(quantidade) || quantidade <= 0) {
+    alert('Por favor, insira uma quantidade válida maior que zero.');
+    return;
+  }
+  
+  const { refeicaoId, pratoId, index } = contextoQuantidade.value;
+  
+  // Encontrar refeição e prato
+  const refeicao = refeicoes.value.find(r => r.id === refeicaoId);
+  if (!refeicao) return;
+  
+  const prato = refeicao.pratos.find(p => p.id === pratoId);
+  if (!prato) return;
+  
+  // Verificar se alimento foi selecionado
+  if (!alimentoSelecionadoModalQuantidade.value) {
+    alert('Por favor, selecione um alimento.');
+    return;
+  }
+  
+  // Buscar o alimento selecionado
+  const alimentoSelecionado = alimentosStore.alimentos.find(a => a.id === alimentoSelecionadoModalQuantidade.value);
+  if (!alimentoSelecionado) {
+    alert('Alimento não encontrado.');
+    return;
+  }
+  
+  const novoItem = {
+    alimento: alimentoSelecionado,
+    porcao: quantidade
+  };
+  
+  if (index === -1) {
+    // Novo alimento
+    prato.alimentos.push(novoItem);
+  } else {
+    // Substituir alimento existente
+    prato.alimentos[index] = novoItem;
+  }
+  
+  // Salvar mudanças
+  planoStore.atualizarPrato(refeicaoId, prato);
+  
+  // Fechar modal
+  fecharModalQuantidade();
+};
+
+// Fechar modal de quantidade
+const fecharModalQuantidade = () => {
+  showQuantidadeModal.value = false;
+  alimentoQuantidade.value = null;
+  novaQuantidade.value = 0;
+  modoEdicaoCompleta.value = false;
+  isAdicionandoNovoAlimento.value = false; // Resetar flag
+  tipoAlimentoModalQuantidade.value = '';
+  alimentoSelecionadoModalQuantidade.value = '';
+  
+  // Limpar contexto por último
+  contextoQuantidade.value = { refeicaoId: null, pratoId: null, index: null };
+};
+
+// Adicionar novo alimento ao prato
+const adicionarNovoAlimento = (refeicaoId, pratoId) => {
+  try {
+    // Preparar para novo alimento
+    alimentoQuantidade.value = null;
+    novaQuantidade.value = 100; // Quantidade padrão
+    modoEdicaoCompleta.value = true;
+    isAdicionandoNovoAlimento.value = true; // Flag para novo alimento
+    
+    // Resetar seleções
+    tipoAlimentoModalQuantidade.value = '';
+    alimentoSelecionadoModalQuantidade.value = '';
+    
+    // Definir contexto
+    contextoQuantidade.value = { refeicaoId, pratoId, index: -1 }; // index -1 indica novo alimento
+    
+    showQuantidadeModal.value = true;
+  } catch (error) {
+    console.error('Erro ao adicionar novo alimento:', error);
+    alert('Erro ao abrir modal de novo alimento. Tente novamente.');
+  }
+};
+
+
+
+// Remover alimento específico do prato (sobrescrevendo a função do modal)
+const removerAlimentoIndividual = (refeicaoId, pratoId, alimentoIndex) => {
+  if (!confirm('Tem certeza que deseja remover este alimento?')) return;
+  
+  // Encontrar refeição e prato
+  const refeicao = refeicoes.value.find(r => r.id === refeicaoId);
+  if (!refeicao) return;
+  
+  const prato = refeicao.pratos.find(p => p.id === pratoId);
+  if (!prato || !prato.alimentos[alimentoIndex]) return;
+  
+  // Remover alimento
+  prato.alimentos.splice(alimentoIndex, 1);
+  
+  // Salvar mudanças
+  planoStore.atualizarPrato(refeicaoId, prato);
+};
+
     return {
       // Estados
       refeicoes,
@@ -1117,7 +1851,7 @@ ${alimento2.nome}:
       
       // Modal de refeição
       showModal,
-      refeicaoAtual,
+      refeicaoModal,
       
       // Modal de prato
       showPratoModal,
@@ -1177,12 +1911,16 @@ ${alimento2.nome}:
       getCoresAlimento,
       adicionarNovoPrato,
       editarPrato,
+      duplicarPrato,
       removerPrato,
       salvarPrato,
       fecharPratoModal,
       adicionarAlimentoAoPrato,
       removerAlimentoDoPrato,
       recalcularCaloriasPrato,
+      calcularQuantidades,
+      editarQuantidadeAlimento,
+      removerAlimentoIndividual,
       
       // Funções de alimento (compatibilidade)
       adicionarAlimentoNaRefeicao,
@@ -1201,9 +1939,36 @@ ${alimento2.nome}:
       showSubstituicaoModal,
       alimentoOriginal,
       substitutosDisponiveis,
+      substitutosFiltrados,
       abrirModalSubstituicao,
       fecharModalSubstituicao,
       selecionarSubstituto,
+      buscaSubstituto,
+      filtrarSubstitutos,
+      limparBusca,
+
+      // Modal de quantidade
+      showQuantidadeModal,
+      alimentoQuantidade,
+      novaQuantidade,
+      salvarNovaQuantidade,
+      fecharModalQuantidade,
+      adicionarNovoAlimento,
+      modoEdicaoCompleta,
+      tipoAlimentoModalQuantidade,
+      alimentoSelecionadoModalQuantidade,
+      alimentosPorTipoSelecionadoModalQuantidade,
+      alimentoPrevisaoSelecionado,
+      isNovoAlimento,
+      isAdicionandoNovoAlimento,
+
+      // Modal de configuração do algoritmo
+      showConfigAlgoritmoModal,
+      restricoesAlimentos,
+      executarAlgoritmoComRestricoes,
+      fecharModalConfigAlgoritmo,
+      abrirConfigRestricoes,
+      salvarRestricoes,
 
       // Navegação entre refeições
       currentRefeicaoIndex,
@@ -1224,6 +1989,79 @@ ${alimento2.nome}:
         }
       }
     };
+  },
+  methods: {
+    getMacronutrientesPoints() {
+      const center = 100;
+      const maxDistance = 80;
+      
+      // Calcula as proporções (limitadas a 100%)
+      const caloriaRatio = Math.min(this.caloriasAlocadas / this.caloriasDiarias, 1);
+      const proteinaRatio = Math.min(this.proteinasAlocadas / this.proteinasDiarias, 1);
+      const carboidratoRatio = Math.min(this.carboidratosAlocados / this.carboidratosDiarios, 1);
+      const gorduraRatio = Math.min(this.gordurasAlocadas / this.gorduraMaxima, 1);
+      
+      // Calcula os pontos do quadrilátero
+      const top = center - (maxDistance * caloriaRatio);
+      const right = center + (maxDistance * proteinaRatio);
+      const bottom = center + (maxDistance * carboidratoRatio);
+      const left = center - (maxDistance * gorduraRatio);
+      
+      return `${center},${top} ${right},${center} ${center},${bottom} ${left},${center}`;
+    },
+    getMacronutrientesPointsRefeicao(refeicao) {
+      const center = 100;
+      const maxDistance = 80;
+      
+      // Calcula totais da refeição
+      const totalCalorias = refeicao.pratos.reduce((sum, prato) => sum + this.calcularCaloriasPrato(prato), 0);
+      const totalProteinas = refeicao.pratos.reduce((sum, prato) => sum + this.calcularProteinasPrato(prato), 0);
+      const totalCarboidratos = refeicao.pratos.reduce((sum, prato) => sum + this.calcularCarboidratosPrato(prato), 0);
+      const totalGorduras = refeicao.pratos.reduce((sum, prato) => sum + this.calcularGordurasPrato(prato), 0);
+      
+      // Calcula as proporções (limitadas a 100%)
+      const caloriaRatio = Math.min(totalCalorias / (refeicao.metaCalorias || 1), 1);
+      const proteinaRatio = Math.min(totalProteinas / (refeicao.metaProteinas || 1), 1);
+      const carboidratoRatio = Math.min(totalCarboidratos / (refeicao.metaCarboidratos || 1), 1);
+      const gorduraRatio = Math.min(totalGorduras / (refeicao.metaGorduras || 1), 1);
+      
+      // Calcula os pontos do quadrilátero
+      const top = center - (maxDistance * caloriaRatio);
+      const right = center + (maxDistance * proteinaRatio);
+      const bottom = center + (maxDistance * carboidratoRatio);
+      const left = center - (maxDistance * gorduraRatio);
+      
+      return `${center},${top} ${right},${center} ${center},${bottom} ${left},${center}`;
+    },
+    getMacronutrientesPointsPrato(prato, refeicao) {
+      const center = 100;
+      const maxDistance = 80;
+      
+      // Calcula valores específicos do prato
+      const totalCalorias = this.calcularCaloriasPrato(prato);
+      const totalProteinas = this.calcularProteinasPrato(prato);
+      const totalCarboidratos = this.calcularCarboidratosPrato(prato);
+      const totalGorduras = this.calcularGordurasPrato(prato);
+      
+      // Calcula as proporções
+      // Caloria e proteína: baseadas nas metas da refeição
+      const caloriaRatio = totalCalorias / (refeicao.metaCalorias || 1);
+const proteinaRatio = totalProteinas / (refeicao.metaProteinas || 1);
+
+      
+      // Carboidrato e gordura: baseadas nas calorias do próprio prato
+      const carboidratoRatio = Math.min(totalCarboidratos * 4 / (totalCalorias || 1), 1); // 4 kcal/g carb
+      const gorduraRatio = Math.min(totalGorduras * 9 / (totalCalorias || 1), 1); // 9 kcal/g gord
+      
+      // Calcula os pontos do quadrilátero (reposicionados)
+      // Topo: Calorias, Baixo: Proteínas, Direita: Carboidratos, Esquerda: Gorduras
+      const top = center - (maxDistance * caloriaRatio);
+      const bottom = center + (maxDistance * proteinaRatio);
+      const right = center + (maxDistance * carboidratoRatio);
+      const left = center - (maxDistance * gorduraRatio);
+      
+      return `${center},${top} ${right},${center} ${center},${bottom} ${left},${center}`;
+    }
   }
 }
 </script>
@@ -1254,13 +2092,13 @@ h1 {
 
 .info-row {
   display: flex;
-  justify-content: space-between;
   gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 20px;
 }
 
 .info-item {
   flex: 1;
-  text-align: center;
 }
 
 .info-item h4 {
@@ -2058,7 +2896,7 @@ button {
   min-width: 60px;
 }
 
-.btn-edit-prato, .btn-delete-prato {
+.btn-config-restricoes, .btn-calcular-qtd, .btn-edit-prato, .btn-delete-prato, .btn-edit-quantidade, .btn-substituir, .btn-delete-alimento {
   background: none;
   border: none;
   font-size: 16px;
@@ -2067,12 +2905,38 @@ button {
   border-radius: 4px;
 }
 
+.btn-config-restricoes:hover {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.btn-calcular-qtd:hover {
+  background-color: rgba(33, 150, 243, 0.1);
+}
+
 .btn-edit-prato:hover {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
 .btn-delete-prato:hover {
   background-color: rgba(255, 0, 0, 0.1);
+}
+
+.btn-edit-quantidade:hover {
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.btn-substituir:hover {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.btn-delete-alimento:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+.alimento-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .btn-add-prato {
@@ -2091,6 +2955,28 @@ button {
 .btn-add-prato:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.add-alimento-section {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.btn-add-alimento {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #4caf50, #388e3c);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.btn-add-alimento:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }
 
 .compatibilidade-antiga {
@@ -2201,7 +3087,249 @@ button {
 
   /* Modal de substituição */
   .modal-substituicao {
-    max-width: 600px;
+    max-width: 700px;
+  }
+
+  .busca-input-group {
+    position: relative;
+    margin-bottom: 20px;
+  }
+
+  .busca-input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 16px;
+    background: var(--input-bg);
+    color: var(--text-color-card);
+    transition: border-color 0.3s ease;
+  }
+
+  .busca-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+
+  .btn-limpar-busca {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 3px;
+    transition: background-color 0.3s ease;
+  }
+
+  .btn-limpar-busca:hover {
+    background-color: rgba(255, 0, 0, 0.1);
+    color: #ff4444;
+  }
+
+
+
+  /* Modal de quantidade */
+  .modal-quantidade {
+    max-width: 450px;
+  }
+
+  .alimento-info {
+    background-color: var(--table-header);
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .alimento-info h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-color-card);
+  }
+
+  .alimento-info p {
+    margin: 5px 0;
+    color: var(--text-color-card);
+  }
+
+  .macros-atuais {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  .macros-atuais span {
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--text-color-card);
+  }
+
+  .macros-previsao {
+    background-color: #e8f5e8;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+    border: 1px solid #4caf50;
+  }
+
+  .macros-previsao h4 {
+    margin: 0 0 10px 0;
+    color: #2e7d32;
+  }
+
+  .macros-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .macros-grid span {
+    background-color: rgba(76, 175, 80, 0.1);
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 500;
+    color: #2e7d32;
+  }
+
+  /* Modal de configuração do algoritmo genético */
+  .modal-config-algoritmo {
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .info-algoritmo {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .info-algoritmo p {
+    margin: 5px 0;
+  }
+
+  .restricoes-lista {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 20px;
+  }
+
+  .restricao-item {
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: var(--card-bg);
+    color: var(--text-color-card);
+  }
+
+  .restricao-item:last-child {
+    margin-bottom: 0;
+  }
+
+  .alimento-header-config {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .alimento-info-config {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .alimento-info-config strong {
+    color: var(--text-color-card);
+  }
+
+  .quantidade-atual {
+    font-size: 0.9em;
+    color: var(--text-color-card);
+    opacity: 0.7;
+    font-style: italic;
+  }
+
+  .checkbox-restricao {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--primary-color);
+    font-weight: 500;
+  }
+
+  .checkbox-restricao input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+  }
+
+  .restricoes-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .input-group label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--label-color);
+  }
+
+  .input-group input {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: var(--input-bg);
+    color: var(--input-text);
+  }
+
+  .resumo-restricoes {
+    background-color: #e8f5e8;
+    border: 1px solid #4caf50;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .resumo-restricoes h4 {
+    margin: 0 0 10px 0;
+    color: #2e7d32;
+  }
+
+  .resumo-restricoes ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .resumo-restricoes li {
+    margin-bottom: 8px;
+    color: #2e7d32;
   }
 
   .alimento-original {
@@ -2347,4 +3475,110 @@ button {
     font-size: 0.9em;
     margin-top: 2px;
   }
-  </style> 
+
+  .progresso-container {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .barras-progresso {
+    flex: 1;
+  }
+
+  .macronutrientes-chart {
+    width: 150px;
+    height: 150px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-color);
+    padding-left: 15px;
+    background-color: #2c3e50;
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  .macronutrientes-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .chart-label {
+    font-size: 10px;
+    fill: var(--text-secondary);
+  }
+
+  .refeicao-content {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+  }
+
+  .pratos-container {
+    flex: 1;
+  }
+
+  .macronutrientes-chart {
+    width: 200px;
+    height: 200px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-color);
+    padding-left: 20px;
+  }
+
+  .macronutrientes-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .chart-label {
+    font-size: 10px;
+    fill: var(--text-secondary);
+  }
+
+  .prato-content {
+    display: flex;
+    gap: 20px;
+    margin-top: 15px;
+  }
+
+  .alimentos-list {
+    flex: 1;
+  }
+
+  .macronutrientes-chart {
+    width: 150px;
+    height: 150px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-color);
+    padding-left: 15px;
+}
+
+.btn-delete-prato {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2em;
+  color: var(--error-color);
+  padding: 0.2em;
+  transition: transform 0.2s;
+}
+
+.btn-duplicar-prato {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2em;
+  color: var(--info-color);
+  padding: 0.2em;
+  transition: transform 0.2s;
+}
+
+.btn-duplicar-prato:hover {
+  transform: scale(1.2);
+}
+
+.btn-delete-prato:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+}
+</style> 

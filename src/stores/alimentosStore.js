@@ -36,9 +36,21 @@ export const useAlimentosStore = defineStore('alimentos', {
   
   actions: {
     adicionarAlimento(alimento) {
-      // Gera um ID único
-      alimento.id = Date.now().toString()
-      this.alimentos.push(alimento)
+      const novoAlimento = {
+        id: Date.now().toString(),
+        nome: alimento.nome,
+        tipo: alimento.tipo,
+        caloria: alimento.caloria,
+        proteina: alimento.proteina,
+        carboidrato: alimento.carboidrato,
+        gordura: alimento.gordura,
+        porcaoReferencia: alimento.porcaoReferencia,
+        discreto: alimento.discreto,
+        gramaPorUnidade: alimento.gramaPorUnidade,
+        rotuloPorcao: alimento.rotuloPorcao || 'unidade',
+        rotuloPorcaoCustom: alimento.rotuloPorcaoCustom || ''
+      };
+      this.alimentos.push(novoAlimento)
       this.salvarNoLocalStorage()
     },
     
@@ -85,6 +97,12 @@ export const useAlimentosStore = defineStore('alimentos', {
     carregarDoLocalStorage() {
       // Recarrega os dados do localStorage (útil quando voltando de outras páginas)
       this.alimentos = JSON.parse(localStorage.getItem('alimentos') || '[]')
+    },
+
+    // Zerar todos os alimentos
+    zerarAlimentos() {
+      this.alimentos = []
+      this.salvarNoLocalStorage()
     }
   }
 })

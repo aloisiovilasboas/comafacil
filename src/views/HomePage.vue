@@ -153,7 +153,7 @@ export default {
         };
         planoStore.configurarUsuario(peso.value, nivelAtividade.value, valoresCustomizados);
       } else {
-        planoStore.configurarUsuario(peso.value, nivelAtividade.value);
+      planoStore.configurarUsuario(peso.value, nivelAtividade.value);
       }
       alert('Dados salvos com sucesso!');
     };

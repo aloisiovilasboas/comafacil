@@ -78,9 +78,9 @@ export const usePlanoAlimentarStore = defineStore('planoAlimentar', {
         } else {
           // Estrutura antiga (compatibilidade)
           const gordurasRefeicao = (refeicao.alimentos || []).reduce((subtotal, item) => {
-            return subtotal + (item.alimento.gordura * (item.porcao / item.alimento.porcaoReferencia))
-          }, 0)
-          return total + gordurasRefeicao
+          return subtotal + (item.alimento.gordura * (item.porcao / item.alimento.porcaoReferencia))
+        }, 0)
+        return total + gordurasRefeicao
         }
       }, 0)
     }
@@ -125,6 +125,7 @@ export const usePlanoAlimentarStore = defineStore('planoAlimentar', {
       if (refeicao) {
         prato.id = Date.now().toString() + Math.random().toString(36).substr(2, 5)
         if (!prato.alimentos) prato.alimentos = []
+        if (!prato.restricoes) prato.restricoes = []
         refeicao.pratos.push(prato)
         this.salvarRefeicoes()
       }
@@ -145,9 +146,24 @@ export const usePlanoAlimentarStore = defineStore('planoAlimentar', {
       if (refeicao) {
         const index = refeicao.pratos.findIndex(p => p.id === pratoAtualizado.id)
         if (index !== -1) {
+          if (!pratoAtualizado.restricoes) pratoAtualizado.restricoes = []
           refeicao.pratos[index] = pratoAtualizado
           this.salvarRefeicoes()
         }
+      }
+    },
+    
+    // Duplicar prato
+    duplicarPrato(refeicaoId, prato) {
+      const refeicao = this.refeicoes.find(r => r.id === refeicaoId)
+      if (refeicao) {
+        const pratoDuplicado = {
+          ...JSON.parse(JSON.stringify(prato)), // Deep clone do prato
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+          nome: `Cópia de ${prato.nome}`
+        }
+        refeicao.pratos.push(pratoDuplicado)
+        this.salvarRefeicoes()
       }
     },
     
